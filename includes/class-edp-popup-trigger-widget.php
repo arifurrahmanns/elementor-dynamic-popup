@@ -442,36 +442,37 @@ class Popup_Trigger_Widget extends Widget_Base {
 			return;
 		}
 
-		// Force correct post context for dynamic tags (Post Title, Featured Image, etc.).
-		// Required because get_builder_content_for_display() may not inherit Loop context.
-		$original_post = isset( $GLOBALS['post'] ) ? $GLOBALS['post'] : null;
+		ob_start();
+		if ( class_exists( '\Elementor\Core\Files\CSS\Post' ) ) {
+			$css_file = new \Elementor\Core\Files\CSS\Post( $popup_id );
+		} elseif ( class_exists( '\Elementor\Post_CSS_File' ) ) {
+			$css_file = new \Elementor\Post_CSS_File( $popup_id );
+		}
+		if ( isset( $css_file ) ) {
+			$css_file->enqueue();
+		}
+
+		// Ensure the post context is strictly set to the loop item before evaluating dynamic tags.
 		if ( $post_id ) {
-			$post_object = get_post( $post_id );
-			if ( $post_object ) {
-				$GLOBALS['post'] = $post_object;
-				setup_postdata( $post_object );
+			$loop_post = get_post( $post_id );
+			if ( $loop_post ) {
+				$GLOBALS['post'] = $loop_post;
+				setup_postdata( $loop_post );
 			}
 		}
 
-		// Temporarily set wp_query context for dynamic tags that use get_queried_object_id().
-		$did_set_query = false;
-		if ( $post_id && isset( $GLOBALS['wp_query'] ) ) {
-			$original_queried    = $GLOBALS['wp_query']->queried_object;
-			$original_queried_id = (int) $GLOBALS['wp_query']->queried_object_id;
-			$GLOBALS['wp_query']->queried_object    = get_post( $post_id );
-			$GLOBALS['wp_query']->queried_object_id = (int) $post_id;
-			$did_set_query       = true;
-		}
+		$document->print_elements_with_wrapper( $document->get_elements_data() );
+		$content = ob_get_clean();
 
-		$content = \Elementor\Plugin::$instance->frontend->get_builder_content_for_display( $popup_id, true );
-
-		if ( $did_set_query && isset( $GLOBALS['wp_query'] ) ) {
-			$GLOBALS['wp_query']->queried_object    = $original_queried;
-			$GLOBALS['wp_query']->queried_object_id = $original_queried_id;
-		}
-		if ( $original_post ) {
-			$GLOBALS['post'] = $original_post;
-			wp_reset_postdata();
+		// Aggressively restore the post context to the loop item.
+		// Content inside the popup (e.g. nested queries) might call wp_reset_postdata(), 
+		// which falls back to the main document (Home page) and ruins the rest of the loop item.
+		if ( $post_id ) {
+			$loop_post = get_post( $post_id );
+			if ( $loop_post ) {
+				$GLOBALS['post'] = $loop_post;
+				setup_postdata( $loop_post );
+			}
 		}
 
 		if ( empty( trim( $content ) ) ) {
