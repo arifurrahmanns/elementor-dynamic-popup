@@ -442,21 +442,33 @@ class Popup_Trigger_Widget extends Widget_Base {
 			return;
 		}
 
-		// Ensure correct post context for dynamic tags. When inside a Loop Grid,
-		// $post is usually already set by Elementor. We only swap if it differs.
-		$original_post = null;
-		$current_post_id = isset( $GLOBALS['post']->ID ) ? (int) $GLOBALS['post']->ID : 0;
-		if ( $post_id && $current_post_id !== (int) $post_id ) {
-			$original_post = isset( $GLOBALS['post'] ) ? $GLOBALS['post'] : null;
-			$post_object   = get_post( $post_id );
+		// Force correct post context for dynamic tags (Post Title, Featured Image, etc.).
+		// Required because get_builder_content_for_display() may not inherit Loop context.
+		$original_post = isset( $GLOBALS['post'] ) ? $GLOBALS['post'] : null;
+		if ( $post_id ) {
+			$post_object = get_post( $post_id );
 			if ( $post_object ) {
 				$GLOBALS['post'] = $post_object;
 				setup_postdata( $post_object );
 			}
 		}
 
+		// Temporarily set wp_query context for dynamic tags that use get_queried_object_id().
+		$did_set_query = false;
+		if ( $post_id && isset( $GLOBALS['wp_query'] ) ) {
+			$original_queried    = $GLOBALS['wp_query']->queried_object;
+			$original_queried_id = (int) $GLOBALS['wp_query']->queried_object_id;
+			$GLOBALS['wp_query']->queried_object    = get_post( $post_id );
+			$GLOBALS['wp_query']->queried_object_id = (int) $post_id;
+			$did_set_query       = true;
+		}
+
 		$content = \Elementor\Plugin::$instance->frontend->get_builder_content_for_display( $popup_id, true );
 
+		if ( $did_set_query && isset( $GLOBALS['wp_query'] ) ) {
+			$GLOBALS['wp_query']->queried_object    = $original_queried;
+			$GLOBALS['wp_query']->queried_object_id = $original_queried_id;
+		}
 		if ( $original_post ) {
 			$GLOBALS['post'] = $original_post;
 			wp_reset_postdata();

@@ -41,7 +41,9 @@
 			this.scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
 
 			this.createModal();
-			this.modal.find( '.edp-popup-body' ).append( $content.contents().clone() );
+			var $inner = $content.find( '.edp-popup-inner' );
+			var $toAppend = $inner.length ? $inner.clone() : $content.contents().clone();
+			this.modal.find( '.edp-popup-body' ).append( $toAppend );
 			this.modal.addClass( 'edp-visible' );
 			this.$body.addClass( 'edp-modal-open' ).css( '--edp-scroll-top', -this.scrollPosition + 'px' );
 
