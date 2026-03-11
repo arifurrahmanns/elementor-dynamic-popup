@@ -1,0 +1,18 @@
+# Docker (local dev only)
+docker-compose.yml
+docker/
+DOCKER.md
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Env
+.env
+.env.local
